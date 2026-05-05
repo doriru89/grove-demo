@@ -336,7 +336,7 @@ body { background:var(--c-bg); overflow:hidden; font-family:var(--fb); }
   color:var(--c-text); letter-spacing:0.5px;
   margin-bottom:4px;
   opacity:0; transition:opacity 0.5s; pointer-events:none;
-  max-width:520px; white-space:normal; line-height:1.5;
+  max-width:720px; min-width:400px; white-space:normal; line-height:1.5;
 }
 #companion-bubble::after {
   content:''; position:absolute; top:100%; left:50%;
@@ -1067,7 +1067,7 @@ function renderDomains() {
     el.style.top = (d.y - 350) + 'px';
     el.style.opacity = '1';
     el.style.background = `radial-gradient(circle, ${d.color}55 0%, ${d.color}28 50%, transparent 75%)`;
-    el.style.border = `3px solid ${d.color}66`;
+    el.style.border = `1.5px solid ${d.color}cc`;
     const label = document.createElement('div');
     label.className = 'domain-label';
     label.style.color = d.color;
@@ -1113,6 +1113,10 @@ function domainColor(domain) {
 // =====================================================================
 // CHAT
 // =====================================================================
+function clearChat() {
+  $chatLog.innerHTML = '';
+}
+
 function addChat(text, type='ai') {
   const msg = document.createElement('div');
   msg.className = 'chat-msg ' + type;
@@ -1120,6 +1124,42 @@ function addChat(text, type='ai') {
   $chatLog.appendChild(msg);
   $chatLog.scrollTop = $chatLog.scrollHeight;
   return msg;
+}
+
+function flyFromChat(nodeId) {
+  return new Promise(function(resolve) {
+    var node = NODES[nodeId];
+    if (!node) { resolve(); return; }
+    var chip = document.createElement('div');
+    chip.style.cssText = 'position:fixed;z-index:9999;right:200px;top:45%;width:220px;padding:10px 14px;' +
+      'border:3px solid var(--c-gold);border-radius:8px;background:var(--c-surface);' +
+      'box-shadow:0 0 24px rgba(232,184,73,0.6),0 0 48px rgba(232,184,73,0.3);' +
+      'font-family:var(--fp);cursor:grabbing;opacity:0;transform:scale(0.5);' +
+      'transition:all 1.4s cubic-bezier(0.22, 1, 0.36, 1);';
+    chip.innerHTML = '<div style="font-size:7px;letter-spacing:1.5px;color:var(--c-gold);margin-bottom:4px;">' + node.tag + '</div>' +
+      '<div style="font-size:9px;font-weight:bold;color:var(--c-text);letter-spacing:0.5px;">' + node.title + '</div>' +
+      '<div style="font-size:10px;color:var(--c-text);opacity:0.7;margin-top:4px;font-family:var(--fb);">' + node.oneline + '</div>';
+    document.body.appendChild(chip);
+    requestAnimationFrame(function() {
+      chip.style.opacity = '1';
+      chip.style.transform = 'scale(0.8)';
+    });
+    setTimeout(function() {
+      var targetX = node.x * state.zoom + state.panX;
+      var targetY = node.y * state.zoom + state.panY;
+      chip.style.right = 'auto';
+      chip.style.left = Math.max(20, Math.min(targetX, 800)) + 'px';
+      chip.style.top = Math.max(40, Math.min(targetY, 700)) + 'px';
+      chip.style.transform = 'scale(1)';
+      chip.style.opacity = '0.3';
+      chip.style.boxShadow = '0 0 8px rgba(232,184,73,0.2)';
+    }, 400);
+    setTimeout(function() {
+      chip.remove();
+      flyInCard(nodeId);
+      resolve();
+    }, 1600);
+  });
 }
 
 function showTyping() {
@@ -1879,13 +1919,28 @@ async function runDemo() {
   // PHASE 2: ANSWER
   // =================================================================
   await delay(1500);
+  clearChat();
   state.demoPhase = 'answer';
   var t1 = showTyping();
   await delay(1200);
-  replaceTyping(t1, "🐱 So here is what happened: humanoid robots went from science fiction to real products in about 18 months.<br><br>Three forces converging:<br><br>1. <strong>AI got smart enough</strong> — the same models behind ChatGPT can now reason about physical objects and output motor commands<br>2. <strong>Hardware got cheap enough</strong> — sensors and motors dropped 80% in cost over 5 years<br>3. <strong>There are not enough humans</strong> — Japan, China, Korea facing demographic collapse. Factories cannot fill shifts.<br><br>That laundry robot you saw? It exists because all three curves crossed at the same time.");
+  replaceTyping(t1, "🐱 So here is what happened: humanoid robots went from science fiction to real products in about 18 months.<br><br><span class=\"chat-hook\" id=\"hook-embodied\">Three forces converging</span>:<br><br>1. <strong>AI got smart enough</strong> — the same models behind ChatGPT can now reason about physical objects and output motor commands<br>2. <strong>Hardware got cheap enough</strong> — sensors and motors dropped 80% in cost over 5 years<br>3. <strong>There are not enough humans</strong> — Japan, China, Korea facing demographic collapse. Factories cannot fill shifts.<br><br>That laundry robot you saw? It exists because all three curves crossed at the same time.");
 
+  await delay(2000);
+  var hookP2 = $('hook-embodied');
+  if (hookP2) {
+    hookP2.style.background = 'rgba(232,184,73,0.4)';
+    hookP2.style.transition = 'all 0.5s';
+    hookP2.style.cursor = 'grabbing';
+  }
   await delay(800);
-  flyInCard(2);
+  if (hookP2) {
+    hookP2.style.background = 'rgba(232,184,73,0.7)';
+    hookP2.style.transform = 'scale(0.9)';
+    hookP2.style.display = 'inline-block';
+    hookP2.style.boxShadow = '0 0 12px rgba(232,184,73,0.5)';
+  }
+  await delay(400);
+  await flyFromChat(2);
   await simulateCanvasDrag(-200, -50, 0.5, 1000);
   companionSay("New ground.", 3000);
   await delay(500);
@@ -1897,6 +1952,7 @@ async function runDemo() {
   // PHASE 3: DRAG HOOKS (auto-click)
   // =================================================================
   await delay(2000);
+  clearChat();
   state.demoPhase = 'drag';
   var t2 = showTyping();
   await delay(1000);
@@ -1906,11 +1962,19 @@ async function runDemo() {
   var hook = $('hook-foundation');
   if (hook) {
     hook.style.background = 'rgba(232,184,73,0.4)';
-    hook.style.transition = 'background 0.5s';
+    hook.style.transition = 'all 0.5s';
+    hook.style.cursor = 'grabbing';
   }
-  await delay(500);
+  await delay(800);
+  if (hook) {
+    hook.style.background = 'rgba(232,184,73,0.7)';
+    hook.style.transform = 'scale(0.9)';
+    hook.style.display = 'inline-block';
+    hook.style.boxShadow = '0 0 12px rgba(232,184,73,0.5)';
+  }
+  await delay(400);
 
-  flyInCard(5);
+  await flyFromChat(5);
   smoothPan(-100, -200, 0.5);
 
   await delay(500);
@@ -1925,6 +1989,7 @@ async function runDemo() {
   // PHASE 4: BRANCH (auto-select)
   // =================================================================
   await delay(2000);
+  clearChat();
   state.demoPhase = 'branch';
   addChat("🐱 Where do you want to go from here?", 'ai');
   await delay(400);
@@ -1944,18 +2009,67 @@ async function runDemo() {
   // PHASE 5: DEEP DIVE
   // =================================================================
   await delay(800);
+  clearChat();
   state.demoPhase = 'deepdive';
   var t3 = showTyping();
   await delay(1200);
-  replaceTyping(t3, "🐱 Robots learn movement through two main approaches:<br><br><strong>Sim-to-Real</strong> — train millions of times in a virtual world, then transfer to reality. A robot lives 30 years of experience in one simulation day. Transfer rate: about 85%.<br><br><strong>Teleoperation</strong> — humans puppet the robot through an exoskeleton. The robot watches and imitates. Behind every \"autonomous\" demo: hundreds of hours of human labor.<br><br>The laundry robot you saw? Mostly teleoperation. Someone folded 1,000 towels wearing a puppet rig so the robot could learn from watching.");
+  replaceTyping(t3, "🐱 Robots learn movement through <span class=\"chat-hook\" id=\"hook-approaches\">two main approaches</span>:<br><br><span class=\"chat-hook\" id=\"hook-simtoreal\"><strong>Sim-to-Real</strong></span> — train millions of times in a virtual world, then transfer to reality. A robot lives 30 years of experience in one simulation day. Transfer rate: about 85%.<br><br><span class=\"chat-hook\" id=\"hook-teleop\"><strong>Teleoperation</strong></span> — humans puppet the robot through an exoskeleton. The robot watches and imitates. Behind every \"autonomous\" demo: hundreds of hours of human labor.<br><br>The laundry robot you saw? Mostly teleoperation. Someone folded 1,000 towels wearing a puppet rig so the robot could learn from watching.");
 
+  // Card 3: VLA Models — hook on "two main approaches"
+  await delay(2000);
+  var hookAppr = $('hook-approaches');
+  if (hookAppr) {
+    hookAppr.style.background = 'rgba(232,184,73,0.4)';
+    hookAppr.style.transition = 'all 0.5s';
+    hookAppr.style.cursor = 'grabbing';
+  }
   await delay(800);
-  flyInCard(3);
+  if (hookAppr) {
+    hookAppr.style.background = 'rgba(232,184,73,0.7)';
+    hookAppr.style.transform = 'scale(0.9)';
+    hookAppr.style.display = 'inline-block';
+    hookAppr.style.boxShadow = '0 0 12px rgba(232,184,73,0.5)';
+  }
   await delay(400);
-  flyInCard(4);
+  await flyFromChat(3);
+
+  // Card 4: Sim-to-Real — hook on "Sim-to-Real"
+  await delay(800);
+  var hookSim = $('hook-simtoreal');
+  if (hookSim) {
+    hookSim.style.background = 'rgba(232,184,73,0.4)';
+    hookSim.style.transition = 'all 0.5s';
+    hookSim.style.cursor = 'grabbing';
+  }
+  await delay(800);
+  if (hookSim) {
+    hookSim.style.background = 'rgba(232,184,73,0.7)';
+    hookSim.style.transform = 'scale(0.9)';
+    hookSim.style.display = 'inline-block';
+    hookSim.style.boxShadow = '0 0 12px rgba(232,184,73,0.5)';
+  }
+  await delay(400);
+  await flyFromChat(4);
+
   await simulateCanvasDrag(-500, -100, 0.45, 1200);
+
+  // Card 21: Teleoperation — hook on "Teleoperation"
+  await delay(800);
+  var hookTeleop = $('hook-teleop');
+  if (hookTeleop) {
+    hookTeleop.style.background = 'rgba(232,184,73,0.4)';
+    hookTeleop.style.transition = 'all 0.5s';
+    hookTeleop.style.cursor = 'grabbing';
+  }
+  await delay(800);
+  if (hookTeleop) {
+    hookTeleop.style.background = 'rgba(232,184,73,0.7)';
+    hookTeleop.style.transform = 'scale(0.9)';
+    hookTeleop.style.display = 'inline-block';
+    hookTeleop.style.boxShadow = '0 0 12px rgba(232,184,73,0.5)';
+  }
   await delay(400);
-  flyInCard(21);
+  await flyFromChat(21);
 
   await delay(300);
   drawConnection(CONNECTIONS[2]);
@@ -1979,6 +2093,7 @@ async function runDemo() {
   // PHASE 6a: CROSS-SESSION VINE (the peak moment)
   // =================================================================
   await delay(3000);
+  clearChat();
   state.demoPhase = 'cross6a';
   var t5 = showTyping();
   await delay(1000);
@@ -1992,45 +2107,64 @@ async function runDemo() {
   await waitForNext();
 
   // =================================================================
-  // PHASE 6b: REFLECTION + DEEPER PATTERN
+  // PHASE 6b: DEEPER PATTERN
   // =================================================================
   await delay(3000);
+  clearChat();
   state.demoPhase = 'cross6b_choice';
-  addChat("🐱 Want to see how deep the connection goes?", 'ai');
+  addChat("🐱 Your spine and the robot are solving the same problem. Want to see how deep this goes?", 'ai');
   await delay(400);
   showOptions([
-    { label: "[A] Yes — show me", value: 'a' },
-    { label: "[B] Let me sit with this first", value: 'b' }
-  ], function(){});
-  await delay(2000);
-  autoSelectOption(1);
-  await delay(400);
-  addChat("Let me sit with this first", 'user');
-  companionSay("Take a look at what you have built.", 4000);
-
-  await delay(2500);
-  addChat("🐱 You have connected AI models → robot bodies → your own spine in one session.<br>Look at the vines on your canvas. What pattern do you see?", 'ai');
-  await delay(400);
-  showOptions([
-    { label: "[A] Things I learned separately are the same thing", value: 'a' },
-    { label: "[B] Biology solved these problems first", value: 'b' },
-    { label: "[C] I am ready to go deeper now", value: 'c' }
+    { label: "[A] 🧠 How does the brain actually control 600 muscles?", value: 'a' },
+    { label: "[B] 🤖 How do robots plan fluid movement?", value: 'b' },
+    { label: "[C] 🔬 Show me the math behind both", value: 'c' }
   ], function(){});
   await delay(2500);
-  autoSelectOption(0);
+  autoSelectOption(2);
   await delay(400);
-  addChat("Things I learned separately are the same thing", 'user');
+  addChat("Show me the math behind both", 'user');
 
   await delay(800);
   state.demoPhase = 'cross6b';
   var t6 = showTyping();
   await delay(1200);
-  replaceTyping(t6, "🐱 There is a technique in robotics called <strong>Action Chunking</strong> — instead of computing one movement at a time, the robot predicts 50-100 future actions as a single fluid sequence. Like a pianist playing a memorized phrase.<br><br>Here is what is wild: a neuroscientist named Bernstein figured out in 1967 that your brain does the exact same thing. You have 600 muscles, but your brain only controls 5-6 \"synergies\" — coordinated groups. It does not micromanage each muscle. It activates patterns.<br><br><strong>Same math. Biology evolved it. Engineers rediscovered it 56 years later.</strong>");
+  replaceTyping(t6, "🐱 There is a technique in robotics called <span class=\"chat-hook\" id=\"hook-chunking\"><strong>Action Chunking</strong></span> — instead of computing one movement at a time, the robot predicts 50-100 future actions as a single fluid sequence. Like a pianist playing a memorized phrase.<br><br>Here is what is wild: a neuroscientist named <span class=\"chat-hook\" id=\"hook-bernstein\">Bernstein figured out in 1967</span> that your brain does the exact same thing. You have 600 muscles, but your brain only controls 5-6 \"synergies\" — coordinated groups. It does not micromanage each muscle. It activates patterns.<br><br><strong>Same math. Biology evolved it. Engineers rediscovered it 56 years later.</strong>");
 
+  // Card 15: Action Chunking
+  await delay(1500);
+  var hookChunk = $('hook-chunking');
+  if (hookChunk) {
+    hookChunk.style.background = 'rgba(232,184,73,0.4)';
+    hookChunk.style.transition = 'all 0.5s';
+    hookChunk.style.cursor = 'grabbing';
+  }
   await delay(800);
-  flyInCard(15);
+  if (hookChunk) {
+    hookChunk.style.background = 'rgba(232,184,73,0.7)';
+    hookChunk.style.transform = 'scale(0.9)';
+    hookChunk.style.display = 'inline-block';
+    hookChunk.style.boxShadow = '0 0 12px rgba(232,184,73,0.5)';
+  }
   await delay(400);
-  flyInCard(45);
+  await flyFromChat(15);
+
+  // Card 45: Bernstein's Problem
+  await delay(800);
+  var hookBern = $('hook-bernstein');
+  if (hookBern) {
+    hookBern.style.background = 'rgba(232,184,73,0.4)';
+    hookBern.style.transition = 'all 0.5s';
+    hookBern.style.cursor = 'grabbing';
+  }
+  await delay(800);
+  if (hookBern) {
+    hookBern.style.background = 'rgba(232,184,73,0.7)';
+    hookBern.style.transform = 'scale(0.9)';
+    hookBern.style.display = 'inline-block';
+    hookBern.style.boxShadow = '0 0 12px rgba(232,184,73,0.5)';
+  }
+  await delay(400);
+  await flyFromChat(45);
   smoothPan(-200, -300, 0.4, 1000);
 
   await delay(600);
@@ -2039,94 +2173,7 @@ async function runDemo() {
   drawCrossVine(CONNECTIONS[7]);
   companionSay("Same math. 56 years apart.", 5000);
 
-  await delay(1000);
-  createGhostTile(22);
-
-  await waitForNext();
-
-  // =================================================================
-  // PHASE 7: BLANK TILE REVEAL (auto)
-  // =================================================================
-  await delay(2500);
-  state.demoPhase = 'blank';
-  var t7 = showTyping();
-  await delay(800);
-  replaceTyping(t7, "🐱 One more thing. See that pulsing tile? Something has been hiding at the intersection of everything you have explored...");
-  companionSay("Something is hiding at the intersection...", 4000);
-
-  await delay(2500);
-  var ghostEl = $('ghost-22');
-  if (ghostEl) {
-    ghostEl.style.transition = 'transform 0.5s, box-shadow 0.5s';
-    ghostEl.style.transform = 'scale(1.3)';
-    ghostEl.style.boxShadow = '0 0 30px rgba(154,109,196,0.6)';
-    await delay(500);
-    ghostEl.textContent = 'Embodied Cognition';
-    ghostEl.style.fontSize = '8px';
-    ghostEl.style.color = 'rgba(154,109,196,1)';
-    ghostEl.style.borderColor = 'rgba(154,109,196,0.8)';
-    await delay(500);
-    ghostEl.remove();
-    state.ghostNodes.delete(22);
-  }
-
-  flyInCard(22);
-  smoothPan(-300, -300, 0.42);
-
-  await delay(600);
-  var t8 = showTyping();
-  await delay(1000);
-  replaceTyping(t8, "🐱 ✨ <strong>Embodied Cognition</strong><br><br>In 1945, a philosopher named Merleau-Ponty made a claim that got him laughed out of computer science departments for decades:<br><br><em>\"Intelligence does not live in the brain. It emerges from the body's interaction with the world.\"</em><br><br>Babies learn \"roundness\" by grasping, not by reading definitions. Understanding requires touching, moving, feeling.<br><br>For 60 years: dismissed as soft philosophy. Then engineers discovered that chatbots which read about cups still cannot pick them up — but robots trained with body data can. The body is not a vehicle for the mind. It IS the mind.<br><br><strong>A philosopher predicted in 1945 what engineers proved in 2023.</strong>");
-
-  await delay(800);
-  drawCrossVine(CONNECTIONS[8]);
-  await delay(600);
-  drawCrossVine(CONNECTIONS[9]);
-  companionSay("Philosophy predicted engineering. 78 years early.", 6000);
-
-  await waitForNext();
-
-  // =================================================================
-  // PHASE 8: CLOSE
-  // =================================================================
-  await delay(3000);
-  state.demoPhase = 'close';
-
-  createGhostTile(7);
-  createGhostTile(14);
-  createGhostTile(35);
-  createGhostTile(19);
-  createGhostTile(48);
-  createGhostTile(71);
-  flyInCard(6);
-
-  // Auto-organize: system aligns everything into clean layout
-  await delay(1000);
-  addChat("ORGANIZING YOUR KNOWLEDGE TREE", 'system');
-  companionSay("Let me organize your tree...", 3000);
-  smoothPan(50, -50, 0.30, 800);
-  await delay(800);
-  autoOrganize();
   await delay(2000);
-
-  await delay(800);
-  addChat("🐱 <strong>Your tree today:</strong><br><br>• Domains: AI ✓ · Robotics ✓ · Biology/Mind ✓ · Business (unexplored)<br>• 9 new concepts mapped<br>• " + state.connectionCount + " cross-domain connections found<br>• 1 philosophical foundation revealed<br><br><strong>What you discovered:</strong> Your past biology learning IS the foundation of modern robotics. The boundary between \"how brains work\" and \"how robots learn\" was always artificial.<br><br><strong>Still unexplored:</strong><br>• ☆ Labor Economics — why demographics drive the robot market<br>• ☆ US-China Race — the geopolitics angle<br>• ☆ Grounding Problem — why reading about cups ≠ picking one up<br>• ↓ Oscillator Coupling — the math inside CPGs<br>• Robot Inference Loop — what happens in 50ms when a robot grabs a sock<br><br>Every card is now clickable. Explore at your own pace.", 'ai');
-
-  companionSay("9 new branches. See you next time.", 6000);
-  smoothPan(-100, -100, 0.3, 1500);
-
-  await waitForNext();
-
-  // =================================================================
-  // PHASE 9: COMPANION DEMO (show menu is clickable)
-  // =================================================================
-  await delay(3000);
-  showCompanionMenu();
-  companionSay("Click me anytime for reviews!", 4000);
-  await delay(4000);
-  closeCompanionPopup();
-
-  await delay(500);
   state.demoPhase = 'free';
 }
 
